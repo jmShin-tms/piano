@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>키보드 피아노</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f1ec; --ink:#1d1b19; --muted:#8a847c; --accent:#e4572e;
+    --white:#fffdf9; --black:#1d1b19; --line:#d9d3ca;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:Pretendard,-apple-system,"Apple SD Gothic Neo",sans-serif;
+    background:var(--bg); color:var(--ink);
+    min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:28px; padding:32px 16px; user-select:none;
+  }
+  header{text-align:center}
+  h1{font-size:28px;font-weight:700;letter-spacing:-0.02em}
+  header p{color:var(--muted);font-size:14px;margin-top:6px}
+  .panel{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
+  .chip{
+    background:#fff;border:1px solid var(--line);border-radius:999px;
+    padding:8px 14px;font-size:13px;display:flex;gap:8px;align-items:center
+  }
+  .chip b{font-weight:700}
+  kbd{
+    font-family:inherit;font-size:11px;background:var(--bg);border:1px solid var(--line);
+    border-bottom-width:2px;border-radius:5px;padding:1px 6px
+  }
+  select,input[type=range]{font-family:inherit;accent-color:var(--accent)}
+  select{border:none;background:transparent;font-size:13px;font-weight:600;cursor:pointer}
+  .piano{
+    position:relative; display:flex; padding:14px 14px 18px; background:var(--ink);
+    border-radius:16px; box-shadow:0 20px 40px -20px rgba(0,0,0,.45);
+  }
+  .white{
+    width:58px;height:230px;background:var(--white);border-radius:0 0 8px 8px;margin:0 2px;
+    display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:14px;gap:4px;
+    cursor:pointer;transition:transform .05s, background .05s;position:relative;
+  }
+  .black{
+    position:absolute;top:14px;width:36px;height:140px;background:var(--black);
+    border:2px solid #000;border-top:none;border-radius:0 0 6px 6px;z-index:2;
+    display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:10px;gap:3px;
+    cursor:pointer;transition:background .05s;
+    background-image:linear-gradient(#3a3734,#1d1b19 70%);
+  }
+  .label{font-size:15px;font-weight:700;color:var(--ink)}
+  .note{font-size:10px;color:var(--muted)}
+  .black .label{color:#fff;font-size:13px}
+  .black .note{color:#8a847c}
+  .white.on{background:#ffe1d6;transform:translateY(2px)}
+  .white.on .label{color:var(--accent)}
+  .black.on{background:var(--accent);background-image:none}
+  .hint{color:var(--muted);font-size:12px;text-align:center;line-height:1.7}
+  .sheet{
+    width:min(860px,100%);background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px 22px;
+  }
+  .sheet-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .sheet-top h2{font-size:17px;font-weight:700}
+  .sheet-top .ctrl{display:flex;gap:8px;align-items:center}
+  .sheet-top select{border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+  .btn{font-family:inherit;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--bg);
+    border-radius:8px;padding:6px 12px;cursor:pointer}
+  .bars{display:flex;flex-direction:column;gap:12px}
+  .bar{display:flex;flex-wrap:wrap;gap:6px}
+  .n{
+    min-width:44px;padding:6px 4px;border-radius:8px;background:var(--bg);text-align:center;
+    display:flex;flex-direction:column;gap:2px;transition:background .1s, transform .1s
+  }
+  .n .k{font-size:15px;font-weight:700}
+  .n .s{font-size:11px;color:var(--muted)}
+  .n.done{opacity:.35}
+  .n.now{background:var(--accent);color:#fff;transform:scale(1.08)}
+  .n.now .s{color:#ffe1d6}
+  .n.wrong{animation:shake .25s}
+  @keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+  .white.next{box-shadow:inset 0 -6px 0 var(--accent)}
+  .black.next{box-shadow:inset 0 -6px 0 var(--accent)}
+  .msg{font-size:13px;color:var(--muted);margin-top:14px}
+  #start{
+    position:fixed;inset:0;background:rgba(244,241,236,.92);display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:14px;z-index:10;cursor:pointer;font-size:16px;font-weight:600
+  }
+  #start span{font-size:13px;font-weight:400;color:var(--muted)}
+  #start.hide{display:none}
+  @media (max-width:760px){ .white{width:40px;height:180px} .black{width:26px;height:110px} .label{font-size:12px} }
+</style>
+</head>
+<body>
+<div id="start">🎹 클릭하거나 아무 키나 눌러서 시작<span>브라우저 정책상 소리는 첫 입력 후에 켜져</span></div>
+
+<header>
+  <h1>키보드 피아노</h1>
+  <p>노트북 키보드로 연주해봐 · 한글 입력 상태에서도 동작</p>
+</header>
+
+<div class="panel">
+  <div class="chip">옥타브 <b id="oct">4</b> <kbd>Z</kbd><kbd>X</kbd></div>
+  <div class="chip">음색
+    <select id="wave">
+      <option value="piano">피아노풍</option>
+      <option value="sine">사인 (부드럽게)</option>
+      <option value="triangle">트라이앵글</option>
+      <option value="square">스퀘어 (8bit)</option>
+      <option value="sawtooth">톱니 (신스)</option>
+    </select>
+  </div>
+  <div class="chip">볼륨 <input id="vol" type="range" min="0" max="1" step="0.01" value="0.6"></div>
+  <div class="chip">서스테인 <kbd>Space</kbd> <b id="sus">OFF</b></div>
+</div>
+
+<div class="piano" id="piano"></div>
+
+<p class="hint">
+  흰 건반 <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>G</kbd> <kbd>H</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd> <kbd>'</kbd>
+  · 검은 건반 <kbd>W</kbd> <kbd>E</kbd> <kbd>T</kbd> <kbd>Y</kbd> <kbd>U</kbd> <kbd>O</kbd> <kbd>P</kbd><br>
+  마우스로 눌러도 돼
+</p>
+
+<section class="sheet">
+  <div class="sheet-top">
+    <h2>🎼 따라치기 악보</h2>
+    <div class="ctrl">
+      <select id="song"></select>
+      <button class="btn" id="reset">처음부터</button>
+    </div>
+  </div>
+  <div class="bars" id="bars"></div>
+  <p class="msg" id="msg">주황색 음을 치면 다음으로 넘어가. 건반 아래 주황 줄이 칠 키야.</p>
+</section>
+
+<script>
+// 키 배열: e.code 기준이라 한/영 상태와 무관
+// semi = C에서 몇 반음 위인지
+const KEYS = [
+  {code:'KeyA',label:'A',semi:0, black:false},
+  {code:'KeyW',label:'W',semi:1, black:true},
+  {code:'KeyS',label:'S',semi:2, black:false},
+  {code:'KeyE',label:'E',semi:3, black:true},
+  {code:'KeyD',label:'D',semi:4, black:false},
+  {code:'KeyF',label:'F',semi:5, black:false},
+  {code:'KeyT',label:'T',semi:6, black:true},
+  {code:'KeyG',label:'G',semi:7, black:false},
+  {code:'KeyY',label:'Y',semi:8, black:true},
+  {code:'KeyH',label:'H',semi:9, black:false},
+  {code:'KeyU',label:'U',semi:10,black:true},
+  {code:'KeyJ',label:'J',semi:11,black:false},
+  {code:'KeyK',label:'K',semi:12,black:false},
+  {code:'KeyO',label:'O',semi:13,black:true},
+  {code:'KeyL',label:'L',semi:14,black:false},
+  {code:'KeyP',label:'P',semi:15,black:true},
+  {code:'Semicolon',label:';',semi:16,black:false},
+  {code:'Quote',label:"'",semi:17,black:false},
+];
+const NAMES = ['도','도#','레','레#','미','파','파#','솔','솔#','라','라#','시'];
+
+let octave = 4, sustain = false, ctx, master;
+const active = {};     // code -> voice (손가락으로 누르고 있는 것)
+const held = [];       // 서스테인 중인 voice
+const els = {};
+
+// 건반 그리기
+const piano = document.getElementById('piano');
+let whiteIndex = 0;
+KEYS.forEach(k=>{
+  const el = document.createElement('div');
+  el.className = k.black ? 'black' : 'white';
+  el.innerHTML = `<span class="label">${k.label}</span><span class="note"></span>`;
+  if(k.black){
+    // 흰 건반 폭(58+4) 기준으로 경계에 걸치게
+    el.style.left = `calc(14px + ${whiteIndex} * var(--w) - var(--bw) / 2)`;
+  } else whiteIndex++;
+  piano.appendChild(el);
+  els[k.code] = el;
+  el.addEventListener('pointerdown', e=>{ e.preventDefault(); start(); press(k.code); });
+  el.addEventListener('pointerup', ()=>release(k.code));
+  el.addEventListener('pointerleave', ()=>release(k.code));
+});
+function sizeVars(){
+  const small = matchMedia('(max-width:760px)').matches;
+  piano.style.setProperty('--w', small ? '44px' : '62px');
+  piano.style.setProperty('--bw', small ? '26px' : '36px');
+}
+sizeVars(); addEventListener('resize', sizeVars);
+
+function updateNoteNames(){
+  KEYS.forEach(k=>{
+    const midi = 12*(octave+1) + k.semi;
+    els[k.code].querySelector('.note').textContent = NAMES[midi%12] + (Math.floor(midi/12)-1);
+  });
+  document.getElementById('oct').textContent = octave;
+}
+updateNoteNames();
+
+// 오디오
+function start(){
+  if(!ctx){
+    ctx = new (window.AudioContext||window.webkitAudioContext)();
+    master = ctx.createGain();
+    master.gain.value = +document.getElementById('vol').value;
+    const comp = ctx.createDynamicsCompressor();
+    master.connect(comp).connect(ctx.destination);
+  }
+  if(ctx.state==='suspended') ctx.resume();
+  document.getElementById('start').classList.add('hide');
+}
+document.getElementById('start').addEventListener('click', start);
+document.getElementById('vol').addEventListener('input', e=>{ if(master) master.gain.value = +e.target.value; });
+
+function makeVoice(freq){
+  const type = document.getElementById('wave').value;
+  const t = ctx.currentTime;
+  const out = ctx.createGain();
+  out.connect(master);
+  const oscs = [];
+  if(type==='piano'){
+    // 배음 몇 개 + 빠른 어택, 자연 감쇠
+    [[1,0.6],[2,0.25],[3,0.1],[4,0.05]].forEach(([m,g])=>{
+      const o = ctx.createOscillator(), gg = ctx.createGain();
+      o.type = m===1 ? 'triangle' : 'sine';
+      o.frequency.value = freq*m; gg.gain.value = g;
+      o.connect(gg).connect(out); o.start(t); oscs.push(o);
+    });
+    out.gain.setValueAtTime(0,t);
+    out.gain.linearRampToValueAtTime(0.5,t+0.005);
+    out.gain.exponentialRampToValueAtTime(0.2,t+0.4);
+    out.gain.exponentialRampToValueAtTime(0.03,t+4);
+  } else {
+    const o = ctx.createOscillator();
+    o.type = type; o.frequency.value = freq;
+    o.connect(out); o.start(t); oscs.push(o);
+    const peak = (type==='square'||type==='sawtooth') ? 0.15 : 0.4;
+    out.gain.setValueAtTime(0,t);
+    out.gain.linearRampToValueAtTime(peak,t+0.01);
+    out.gain.exponentialRampToValueAtTime(peak*0.6,t+0.3);
+  }
+  return {out,oscs};
+}
+function stopVoice(v){
+  const t = ctx.currentTime;
+  v.out.gain.cancelScheduledValues(t);
+  v.out.gain.setValueAtTime(Math.max(v.out.gain.value,0.0001),t);
+  v.out.gain.exponentialRampToValueAtTime(0.0001,t+0.35);
+  v.oscs.forEach(o=>o.stop(t+0.4));
+}
+
+function press(code){
+  const k = KEYS.find(x=>x.code===code);
+  if(!k || active[code]) return;
+  const midi = 12*(octave+1) + k.semi;
+  const freq = 440*Math.pow(2,(midi-69)/12);
+  active[code] = makeVoice(freq);
+  els[code].classList.add('on');
+  checkSheet(midi);
+}
+function release(code){
+  const v = active[code];
+  if(!v) return;
+  delete active[code];
+  els[code].classList.remove('on');
+  if(sustain) held.push(v); else stopVoice(v);
+}
+
+addEventListener('keydown', e=>{
+  if(e.metaKey||e.ctrlKey||e.altKey) return;
+  start();
+  if(e.code==='Space'){ e.preventDefault(); if(!e.repeat){ sustain=true; document.getElementById('sus').textContent='ON'; } return; }
+  if(e.repeat) return;
+  if(e.code==='KeyZ'){ octave=Math.max(1,octave-1); updateNoteNames(); return; }
+  if(e.code==='KeyX'){ octave=Math.min(7,octave+1); updateNoteNames(); return; }
+  if(KEYS.some(k=>k.code===e.code)){ e.preventDefault(); press(e.code); }
+});
+addEventListener('keyup', e=>{
+  if(e.code==='Space'){
+    sustain=false; document.getElementById('sus').textContent='OFF';
+    while(held.length) stopVoice(held.pop());
+    return;
+  }
+  release(e.code);
+});
+// ===== 악보 (저작권 만료된 곡만) =====
+// 숫자 = 4옥타브 도(A키)에서 몇 반음 위, 배열 하나 = 한 줄
+const SONGS = {
+  '반짝반짝 작은별': [
+    [0,0,7,7,9,9,7],[5,5,4,4,2,2,0],
+    [7,7,5,5,4,4,2],[7,7,5,5,4,4,2],
+    [0,0,7,7,9,9,7],[5,5,4,4,2,2,0]
+  ],
+  '환희의 송가 (베토벤)': [
+    [4,4,5,7,7,5,4,2],[0,0,2,4,4,2,2],
+    [4,4,5,7,7,5,4,2],[0,0,2,4,2,0,0]
+  ],
+  '메리의 어린양': [
+    [4,2,0,2,4,4,4],[2,2,2,4,7,7],
+    [4,2,0,2,4,4,4],[4,2,2,4,2,0]
+  ]
+};
+const songSel = document.getElementById('song');
+Object.keys(SONGS).forEach(n=>songSel.add(new Option(n,n)));
+let seq = [], pos = 0, noteEls = [];
+
+function loadSong(){
+  const bars = document.getElementById('bars');
+  bars.innerHTML = ''; seq = []; noteEls = []; pos = 0;
+  SONGS[songSel.value].forEach(line=>{
+    const row = document.createElement('div'); row.className='bar';
+    line.forEach(semi=>{
+      const k = KEYS.find(x=>x.semi===semi);
+      const d = document.createElement('div'); d.className='n';
+      d.innerHTML = `<span class="k">${k.label}</span><span class="s">${NAMES[semi%12]}</span>`;
+      row.appendChild(d); seq.push(semi); noteEls.push(d);
+    });
+    bars.appendChild(row);
+  });
+  document.getElementById('msg').textContent = '주황색 음을 치면 다음으로 넘어가. 건반 아래 주황 줄이 칠 키야.';
+  renderSheet();
+}
+function renderSheet(){
+  noteEls.forEach((d,i)=>{ d.classList.toggle('done', i<pos); d.classList.toggle('now', i===pos); });
+  Object.values(els).forEach(e=>e.classList.remove('next'));
+  if(pos<seq.length && octave===4){
+    const k = KEYS.find(x=>x.semi===seq[pos]); els[k.code].classList.add('next');
+  }
+}
+function checkSheet(midi){
+  if(pos>=seq.length) return;
+  if(midi === 60 + seq[pos]){
+    pos++; renderSheet();
+    if(pos>=seq.length) document.getElementById('msg').textContent = '🎉 완주! "처음부터"로 다시 칠 수 있어.';
+  } else {
+    const d = noteEls[pos]; d.classList.remove('wrong'); void d.offsetWidth; d.classList.add('wrong');
+    if(octave!==4) document.getElementById('msg').textContent = '악보는 4옥타브 기준이야. Z/X로 옥타브를 4로 맞춰줘.';
+  }
+}
+songSel.addEventListener('change', ()=>{ loadSong(); songSel.blur(); });
+document.getElementById('reset').addEventListener('click', e=>{ loadSong(); e.target.blur(); });
+const _upd = updateNoteNames;
+updateNoteNames = function(){ _upd(); if(noteEls.length) renderSheet(); };
+loadSong();
+
+// 창 포커스 잃으면 눌린 키 정리
+addEventListener('blur', ()=>{ Object.keys(active).forEach(release); });
+</script>
+</body>
+</html>
